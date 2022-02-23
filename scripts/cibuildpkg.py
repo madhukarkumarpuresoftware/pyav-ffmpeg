@@ -136,7 +136,7 @@ class Builder:
             else:
                 self._build_with_autoconf(package, for_builder=for_builder)
 
-    def create_directories(self):
+    def create_directories(self, multistage_build=0):
         # print debugging information
         if platform.system() == "Darwin":
             log_print("Environment variables")
@@ -144,9 +144,12 @@ class Builder:
                 log_print(" - %s: %s" % (var, os.environ[var]))
 
         # create directories
-        for d in [self.build_dir, self._builder_dest_dir, self._target_dest_dir]:
-            if os.path.exists(d):
-                shutil.rmtree(d)
+        if not multistage_build:
+            # Delete the build directories if it is not a
+            # multi-stage build
+            for d in [self.build_dir, self._builder_dest_dir, self._target_dest_dir]:
+                if os.path.exists(d):
+                    shutil.rmtree(d)
         for d in [self.build_dir, self.source_dir]:
             if not os.path.exists(d):
                 os.mkdir(d)

@@ -6,7 +6,8 @@ import sys
 from cibuildpkg import Builder, Package, get_platform, log_group, run
 
 if len(sys.argv) < 2:
-    sys.stderr.write("Usage: build-ffmpeg.py <prefix>\n")
+    sys.stderr.write("Usage: build-ffmpeg.py <prefix> [stage]\n")
+    sys.stderr.write("       AArch64 build requires stage and possible values can be 1, 2 or 3\n")
     sys.exit(1)
 
 dest_dir = sys.argv[1]
@@ -18,7 +19,10 @@ output_tarball = os.path.join(output_dir, f"ffmpeg-{get_platform()}.tar.gz")
 
 if not os.path.exists(output_tarball):
     builder = Builder(dest_dir=dest_dir)
-    builder.create_directories()
+    multistage_build = len(sys.argv) == 3
+    if multistage_build:
+        build_stage = int(sys.argv[2]) - 1
+    builder.create_directories(multistage_build)
 
     # install packages
 
@@ -52,8 +56,8 @@ if not os.path.exists(output_tarball):
         )
 
     # build packages
-
-    packages = [
+    package_groups = [0, 0, 0]
+    package_groups[0] = [
         # libraries
         Package(
             name="xz",
@@ -114,6 +118,7 @@ if not os.path.exists(output_tarball):
             build_arguments=[
                 "--disable-cxx",
                 "--disable-doc",
+                "--disable-guile",
                 "--disable-libdane",
                 "--disable-nls",
                 "--disable-tests",
@@ -122,6 +127,8 @@ if not os.path.exists(output_tarball):
                 "--without-p11-kit",
             ],
         ),
+    ]
+    package_groups[1] = [
         # codecs
         Package(
             name="aom",
@@ -218,6 +225,8 @@ if not os.path.exists(output_tarball):
             source_dir="build/generic",
             build_dir="build/generic",
         ),
+    ]
+    package_groups[2] = [
         # ffmpeg
         Package(
             name="ffmpeg",
@@ -278,6 +287,11 @@ if not os.path.exists(output_tarball):
             ],
         ),
     ]
+
+    if multistage_build:
+        packages = package_groups[build_stage]
+    else:
+        packages = [p for p_list in package_groups for p in p_list]
 
     for package in packages:
         builder.build(package)
